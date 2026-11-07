@@ -1,9 +1,8 @@
 name: zdm_crawler
 
 on:
-  #将下面两行代码取消注释
-  #schedule:
-    #- cron: "0/15 * * * *"
+  schedule:
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       # 这个是手动触发工作流界面上的选项, 选择True时,即使未满足COMMIT_THRESHOLD提交阈值,也会生成提交记录
@@ -11,6 +10,12 @@ on:
         description: '立即生成提交记录'
         type: boolean
         default: False
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zdm-crawler-${{ github.ref }}
 
 jobs:
   build:
@@ -98,15 +103,11 @@ jobs:
         fi
         cp database.db database_old.db
     # 保存已推送和暂未推送的优惠信息
-    - name: git add files
+    - name: Save deal history
       if: steps.commit_check.outputs.should_commit == 'true' || inputs.should_commit == 'true'
       run: |
         git add database.db
-    - name: commit & push
-      if: steps.commit_check.outputs.should_commit == 'true' || inputs.should_commit == 'true'
-      uses: actions-go/push@master
-      with:
-        author-email: 'actions@github.com'
-        author-name: 'GitHub Actions'
-        commit-message: 'update articles'
-        token: ${{secrets.GIT_TOKEN}}
+        if ! git diff --cached --quiet; then
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Update deal history"
+          git push
+        fi
